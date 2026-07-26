@@ -53,8 +53,11 @@ app = FastAPI(
 
 BASE_DIR = Path(__file__).parent
 
-# static ফোল্ডার না থাকলে পাইথন নিজে তৈরি করে নেবে
-os.makedirs(BASE_DIR / "static", exist_ok=True)
+static_path = BASE_DIR / "static"
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
+    
+
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
