@@ -160,15 +160,4 @@ async def settings_page(request: Request):
 
 @app.post("/auth/start-engine")
 async def start_engine_after_login():
-    """Start the engine after login, unless the user had paused it."""
-    if not await tc.is_authorized():
-        return {"status": "not_authenticated"}
-    if await db.get_setting("engine_enabled", "1") != "1":
-        return {"status": "paused_by_user"}
-    await engine.start()
-    return {"status": "started"}
-
-
-if __name__ == "__main__":
-    from config import HOST, PORT
-    uvicorn.run("main:app", host=HOST, port=PORT, reload=False, log_level="info")
+    
