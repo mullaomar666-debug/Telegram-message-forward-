@@ -49,7 +49,8 @@ app = FastAPI(
 )
 
 BASE_DIR = Path(__file__).parent
-templates = Jinja2Templates(directory=BASE_DIR / templates = Jinja2Templates(directory=BASE_DIR)
+templates = Jinja2Templates(directory=BASE_DIR)
+
 
 
 PAGE_ROUTES = ["/", "/dashboard", "/logs", "/settings", "/rules"]
