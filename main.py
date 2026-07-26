@@ -18,6 +18,7 @@ import forwarder_engine as engine
 import auth, chats, rules, logs, settings as settings_routes
 
 
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -43,10 +44,8 @@ async def lifespan(app: FastAPI):
     await db.close_db()
 
 
-app = FastAPI(
-    title="TM Forwarder",
-    version="2.0.0",
-    lifespan=lifespan,
+BASE_DIR = Path(__file__).parent
+
     docs_url="/fapi/docs",
     redoc_url=None,
 )
