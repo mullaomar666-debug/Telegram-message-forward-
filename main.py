@@ -15,7 +15,8 @@ import database as db
 import telegram_client as tc
 import forwarder_engine as engine
 
-from routes import auth, chats, rules, logs, settings as settings_routes
+import auth, chats, rules, logs, settings as settings_routes
+
 
 logging.basicConfig(
     level=logging.INFO,
