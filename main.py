@@ -1,6 +1,6 @@
 import os
 
-main.py — FastAPI application entry point (TM Forwarder UI).
+#main.py — FastAPI application entry point (TM Forwarder UI).
 
 Startup sequence:
   1. Initialize database schema.
