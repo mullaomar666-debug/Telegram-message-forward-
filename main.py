@@ -2,7 +2,7 @@ import os
 
 #main.py — FastAPI application entry point (TM Forwarder UI).
 
-Startup sequence:
+#Startup sequence:
   1. Initialize database schema.
   2. Attempt to resume existing Telegram session.
   3. If resumed and engine was enabled, start the forwarding engine.
