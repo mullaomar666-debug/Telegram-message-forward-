@@ -62,8 +62,10 @@ app = FastAPI(
     redoc_url=None,
 )
 
-BASE_DIR = Path(__file__).parent
+os.makedirs(BASE_DIR / "static", exist_ok=True)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 PAGE_ROUTES = ["/", "/dashboard", "/logs", "/settings", "/rules"]
