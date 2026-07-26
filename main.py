@@ -7,7 +7,7 @@ Startup sequence:
   2. Attempt to resume existing Telegram session.
   3. If resumed and engine was enabled, start the forwarding engine.
   4. Launch the auto-reconnect background task.
-"""
+
 
 import asyncio
 import logging
