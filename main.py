@@ -51,7 +51,8 @@ app = FastAPI(
 BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=BASE_DIR)
 
-
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory=BASE_DIR), name="static")
 
 PAGE_ROUTES = ["/", "/dashboard", "/logs", "/settings", "/rules"]
 
