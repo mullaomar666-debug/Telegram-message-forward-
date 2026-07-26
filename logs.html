@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block page_title %}Logs{% endblock %}
+
+{% block appbar_actions %}
+<button class="icon-btn" onclick="clearLogs()" title="Clear logs"><i class="bi bi-trash"></i></button>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <input type="search" class="form-control" id="logSearch" placeholder="Search logs…" autocomplete="off">
+</div>
+
+<div class="pill-row mb-3" id="statusPills">
+  <button class="pill active" data-status="">All</button>
+  <button class="pill" data-status="ok">Forwarded</button>
+  <button class="pill" data-status="skipped">Skipped</button>
+  <button class="pill" data-status="duplicate">Duplicates</button>
+  <button class="pill" data-status="error">Errors</button>
+</div>
+
+<div id="logsList">
+  <div class="empty-state"><i class="bi bi-hourglass-split spin"></i>Loading…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStatus = "";
+let searchTimer = null;
+
+async function loadLogs() {
+  const search = document.getElementById("logSearch").value.trim();
+  try {
+    const r = await api(`/fapi/logs?limit=200&status=${currentStatus}&search=${encodeURIComponent(search)}`);
+    renderLogs(r.logs);
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+function renderLogs(logs) {
+  const box = document.getElementById("logsList");
+  if (!logs.length) {
+    box.innerHTML = `<div class="empty-state"><i class="bi bi-journal-x"></i>No log entries</div>`;
+    return;
+  }
+  box.innerHTML = logs.map(l => `
+    <div class="mcard log-card">
+      <div class="log-meta">
+        <span class="log-route">${escapeHtml(l.source_title || "—")}
+          <i class="bi bi-arrow-right mx-1" style="color:var(--primary);"></i>
+          ${escapeHtml(l.dest_title || "—")}</span>
+        <span class="badge-status badge-${l.status}">${l.status}</span>
+      </div>
+      <div class="log-time mb-1">${timeAgo(l.created_at)}</div>
+      ${l.message_text ? `<div class="log-text">${escapeHtml(l.message_text.slice(0, 220))}${l.message_text.length > 220 ? "…" : ""}</div>` : ""}
+      ${l.error_msg ? `<div class="log-err"><i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(l.error_msg)}</div>` : ""}
+    </div>`).join("");
+}
+
+document.getElementById("logSearch").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadLogs, 300);
+});
+
+document.querySelectorAll("#statusPills .pill").forEach(p => {
+  p.addEventListener("click", () => {
+    document.querySelectorAll("#statusPills .pill").forEach(x => x.classList.remove("active"));
+    p.classList.add("active");
+    currentStatus = p.dataset.status;
+    loadLogs();
+  });
+});
+
+async function clearLogs() {
+  if (!confirm("Clear all logs?")) return;
+  try {
+    await api("/fapi/logs", { method: "DELETE" });
+    showToast("Logs cleared", "info");
+    loadLogs();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+loadLogs();
+setInterval(loadLogs, 10000);
+</script>
+{% endblock %}

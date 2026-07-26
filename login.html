@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#121212" />
+  <title>Login — TM Forwarder</title>
+  <link href="/static/vendor/bootstrap.min.css" rel="stylesheet" />
+  <link href="/static/vendor/inter.css" rel="stylesheet" />
+  <link href="/static/vendor/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
+  <link href="/static/css/custom.css" rel="stylesheet" />
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo"><i class="bi bi-send-fill"></i></div>
+    <h1 class="text-center fs-4 fw-bold mb-1">TM Forwarder</h1>
+    <p class="text-center mb-4" style="color:var(--text-dim);font-size:.85rem;">
+      Sign in with your phone number
+    </p>
+
+    <!-- Step 1: phone number -->
+    <form id="credForm">
+      <div class="mb-3">
+        <label class="form-label">Phone number</label>
+        <input type="tel" class="form-control" id="phone" required placeholder="+15551234567" autocomplete="tel">
+      </div>
+      <button type="submit" class="btn btn-primary w-100" id="credBtn">Send Code</button>
+      <p class="mt-3 mb-0 text-center" style="font-size:.75rem;color:var(--text-dim);">
+        We'll send a login code to your Telegram app.
+      </p>
+    </form>
+
+    <!-- Step 2: OTP -->
+    <form id="otpForm" class="d-none">
+      <div class="mb-3">
+        <label class="form-label">Verification code</label>
+        <input type="text" inputmode="numeric" class="form-control text-center fs-4" id="otpCode"
+               placeholder="• • • • •" autocomplete="one-time-code">
+      </div>
+      <div class="mb-3 d-none" id="pwdGroup">
+        <label class="form-label">2FA Password</label>
+        <input type="password" class="form-control" id="password" placeholder="Cloud password">
+      </div>
+      <button type="submit" class="btn btn-primary w-100" id="otpBtn">Verify</button>
+      <button type="button" class="btn btn-outline w-100 mt-2" onclick="location.reload()">Start over</button>
+    </form>
+
+    <div id="loginError" class="alert alert-danger d-none mt-3 py-2" style="border-radius:14px;font-size:.85rem;"></div>
+  </div>
+</div>
+
+<script>
+const err = document.getElementById("loginError");
+function showError(msg) { err.textContent = msg; err.classList.remove("d-none"); }
+function hideError() { err.classList.add("d-none"); }
+function loading(btn, on, label) {
+  btn.disabled = on;
+  btn.innerHTML = on ? '<span class="spinner-border spinner-border-sm me-2"></span>Please wait…' : label;
+}
+
+document.getElementById("credForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); hideError();
+  const btn = document.getElementById("credBtn");
+  loading(btn, true, "Send Code");
+  try {
+    const res = await fetch("/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phone: document.getElementById("phone").value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Login failed");
+    if (data.state === "already_connected") { location.href = "/"; return; }
+    document.getElementById("credForm").classList.add("d-none");
+    document.getElementById("otpForm").classList.remove("d-none");
+    document.getElementById("otpCode").focus();
+  } catch (ex) { showError(ex.message); }
+  loading(btn, false, "Send Code");
+});
+
+document.getElementById("otpForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); hideError();
+  const btn = document.getElementById("otpBtn");
+  loading(btn, true, "Verify");
+  try {
+    const res = await fetch("/auth/verify", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: document.getElementById("otpCode").value.trim(),
+        password: document.getElementById("password").value || null,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Verification failed");
+    if (data.state === "waiting_2fa") {
+      document.getElementById("pwdGroup").classList.remove("d-none");
+      document.getElementById("password").focus();
+      showError("Two-factor password required.");
+    } else if (data.state === "connected") {
+      await fetch("/auth/start-engine", { method: "POST" }).catch(() => {});
+      location.href = "/";
+    }
+  } catch (ex) { showError(ex.message); }
+  loading(btn, false, "Verify");
+});
+</script>
+</body>
+</html>

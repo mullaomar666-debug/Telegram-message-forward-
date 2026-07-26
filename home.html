@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block page_title %}TM Forwarder{% endblock %}
+
+{% block appbar_actions %}
+<a href="/rules/new" class="icon-btn" title="New rule"><i class="bi bi-plus-lg"></i></a>
+{% endblock %}
+
+{% block content %}
+{% set type_icons = [
+  ("text", "bi-text-left"), ("photo", "bi-image"), ("video", "bi-camera-video"),
+  ("gif", "bi-filetype-gif"), ("sticker", "bi-sticky"), ("emoji", "bi-emoji-smile"),
+  ("location", "bi-geo-alt"), ("contact", "bi-person-vcard"),
+  ("file", "bi-paperclip"), ("voice", "bi-mic"),
+] %}
+<div id="rulesList">
+  {% if not rules %}
+  <div class="empty-state">
+    <i class="bi bi-arrow-left-right"></i>
+    <div class="fw-semibold mb-1" style="color:#e7e7e7;">No forwarding rules yet</div>
+    <div class="mb-3">Create your first rule to start forwarding messages.</div>
+    <a href="/rules/new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Create Rule</a>
+  </div>
+  {% endif %}
+
+  {% for rule in rules %}
+  <div class="mcard rule-card {{ 'rule-disabled' if not rule.enabled }}" data-rule-id="{{ rule.id }}">
+    <div class="fromto">
+      <div class="ft-col">
+        <div class="ft-label">From</div>
+        {% for s in rule.sources[:2] %}
+        <div class="rule-chat {{ 'mt-2' if not loop.first }}">
+          <span class="js-avatar" data-chat-id="{{ s.chat_id }}" data-title="{{ s.title }}"></span>
+          <div class="chat-name">{{ s.title or s.chat_id }}</div>
+        </div>
+        {% endfor %}
+        {% if rule.sources|length > 2 %}
+        <div class="chat-sub mt-1">+{{ rule.sources|length - 2 }} more</div>
+        {% endif %}
+      </div>
+
+      <i class="bi bi-arrow-right ft-arrow"></i>
+
+      <div class="ft-col">
+        <div class="ft-label">To</div>
+        {% for d in rule.destinations[:2] %}
+        <div class="rule-chat {{ 'mt-2' if not loop.first }}">
+          <span class="js-avatar" data-chat-id="{{ d.chat_id }}" data-title="{{ d.title }}"></span>
+          <div class="chat-name">{{ d.title or d.chat_id }}</div>
+        </div>
+        {% endfor %}
+        {% if rule.destinations|length > 2 %}
+        <div class="chat-sub mt-1">+{{ rule.destinations|length - 2 }} more</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+      <span class="mode-chip">
+        <i class="bi {{ 'bi-files' if rule.forward_as_copy else 'bi-arrow-up-right' }}"></i>
+        {{ 'Copy' if rule.forward_as_copy else 'Forwarded' }}
+      </span>
+      <span class="badge-status {{ 'badge-running' if rule.enabled and engine_running else 'badge-paused' }} rule-status-badge">
+        {{ 'Running' if rule.enabled and engine_running else 'Paused' }}
+      </span>
+      {% if rule.name %}<span class="chat-sub"><i class="bi bi-tag me-1"></i>{{ rule.name }}</span>{% endif %}
+    </div>
+
+    <div class="type-icon-row">
+      {% for t, ic in type_icons %}
+      {% if not rule.msg_types or t in rule.msg_types %}<i class="bi {{ ic }}" title="{{ t }}"></i>{% endif %}
+      {% endfor %}
+    </div>
+
+    {% if rule.whitelist %}
+    <div class="kw-chips mt-2">
+      {% for w in rule.whitelist[:3] %}
+      <span class="kw-chip on-card"><i class="bi bi-check-lg"></i>{{ w }}</span>
+      {% endfor %}
+      {% if rule.whitelist|length > 3 %}<span class="chat-sub align-self-center">+{{ rule.whitelist|length - 3 }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-end align-items-center gap-1 mt-2">
+      <button class="icon-btn plain" onclick="toggleRule({{ rule.id }}, this)" title="Enable / disable rule">
+        <i class="bi {{ 'bi-pause-fill' if rule.enabled else 'bi-play-fill' }}"></i>
+      </button>
+      <a class="icon-btn plain" href="/rules/{{ rule.id }}/edit" title="Edit">
+        <i class="bi bi-pencil"></i>
+      </a>
+      <button class="icon-btn danger-soft" onclick="deleteRule({{ rule.id }})" title="Delete">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block fab %}
+<button class="fab {{ '' if engine_running else 'paused' }}" id="engineFab"
+        onclick="toggleEngine()" title="Start / Pause forwarding">
+  <i class="bi {{ 'bi-pause-fill' if engine_running else 'bi-play-fill' }}" id="fabIcon"></i>
+</button>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll(".js-avatar").forEach(el => {
+  el.outerHTML = avatarHtml(el.dataset.chatId, el.dataset.title);
+});
+
+let engineRunning = {{ 'true' if engine_running else 'false' }};
+
+async function toggleEngine() {
+  const fab = document.getElementById("engineFab");
+  try {
+    const r = await api("/fapi/settings/engine/toggle", { method: "POST" });
+    engineRunning = r.running;
+    fab.classList.toggle("paused", !r.running);
+    document.getElementById("fabIcon").className = "bi " + (r.running ? "bi-pause-fill" : "bi-play-fill");
+    showToast(r.running ? "Forwarding started" : "Forwarding paused", r.running ? "success" : "info");
+    setTimeout(() => location.reload(), 600);
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function toggleRule(id, btn) {
+  try {
+    const r = await api(`/fapi/rules/${id}/toggle`, { method: "POST" });
+    showToast(r.enabled ? "Rule enabled" : "Rule disabled", "info");
+    setTimeout(() => location.reload(), 400);
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function deleteRule(id) {
+  if (!confirm("Delete this forwarding rule?")) return;
+  try {
+    await api(`/fapi/rules/${id}`, { method: "DELETE" });
+    document.querySelector(`[data-rule-id="${id}"]`)?.remove();
+    showToast("Rule deleted", "info");
+    if (!document.querySelector("[data-rule-id]")) location.reload();
+  } catch (e) { showToast(e.message, "error"); }
+}
+</script>
+{% endblock %}

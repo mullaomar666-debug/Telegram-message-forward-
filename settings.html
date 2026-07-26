@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="mcard">
+  <div class="fw-semibold mb-1">Account</div>
+  {% if user %}
+  <div class="d-flex align-items-center gap-3 mt-3">
+    <span class="avatar avatar-fallback" style="background:hsl(215,45%,55%);">{{ (user.first_name or '?')[0] }}</span>
+    <div>
+      <div class="fw-semibold">{{ user.first_name }} {{ user.last_name }}</div>
+      <div class="chat-sub">
+        {%- if user.phone %}+{{ user.phone }}{% endif -%}
+        {%- if user.username %}{% if user.phone %} · {% endif %}@{{ user.username }}{% endif -%}
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-danger-soft w-100 mt-3" onclick="logout()">
+    <i class="bi bi-box-arrow-right me-2"></i>Log Out &amp; Remove Account
+  </button>
+  {% else %}
+  <div class="chat-sub mb-3">Not connected — log in to start forwarding.</div>
+  <button class="btn btn-primary w-100" onclick="goLogin(this)">
+    <i class="bi bi-telegram me-2"></i>Log In to Telegram
+  </button>
+  {% endif %}
+</div>
+
+<div class="mcard">
+  <div class="setting-row">
+    <div>
+      <div class="s-title">Dark mode</div>
+      <div class="s-sub">Material dark theme (#121212)</div>
+    </div>
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="darkMode" checked onchange="setDarkMode(this.checked)">
+    </div>
+  </div>
+  <div class="setting-row">
+    <div>
+      <div class="s-title">Auto reconnect</div>
+      <div class="s-sub">Reconnect to Telegram automatically</div>
+    </div>
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="autoReconnect" checked
+             onchange="patchSetting({auto_reconnect: this.checked})">
+    </div>
+  </div>
+</div>
+
+<div class="mcard">
+  <div class="fw-semibold mb-2">Configuration</div>
+  <div class="setting-row">
+    <div>
+      <div class="s-title">Export configuration</div>
+      <div class="s-sub">Download rules & settings as JSON</div>
+    </div>
+    <a class="icon-btn" href="/fapi/settings/export" download><i class="bi bi-download"></i></a>
+  </div>
+  <div class="setting-row">
+    <div>
+      <div class="s-title">Import configuration</div>
+      <div class="s-sub">Restore rules from a JSON export</div>
+    </div>
+    <button class="icon-btn" onclick="document.getElementById('importFile').click()"><i class="bi bi-upload"></i></button>
+    <input type="file" id="importFile" accept=".json" class="d-none" onchange="importConfig(this)">
+  </div>
+  <div class="setting-row">
+    <div>
+      <div class="s-title">SQLite backup</div>
+      <div class="s-sub">Download full database as ZIP</div>
+    </div>
+    <a class="icon-btn" href="/fapi/settings/backup" download><i class="bi bi-database-down"></i></a>
+  </div>
+</div>
+
+<div class="mcard">
+  <div class="fw-semibold mb-2">Maintenance</div>
+  <div class="setting-row">
+    <div>
+      <div class="s-title">Reset duplicate database</div>
+      <div class="s-sub">Forget all recorded contract addresses</div>
+    </div>
+    <button class="icon-btn" onclick="resetDuplicates()"><i class="bi bi-arrow-counterclockwise" style="color:var(--amber);"></i></button>
+  </div>
+  <div class="setting-row">
+    <div>
+      <div class="s-title">Clear logs</div>
+      <div class="s-sub">Remove all forwarding history</div>
+    </div>
+    <button class="icon-btn" onclick="clearLogs()"><i class="bi bi-trash" style="color:var(--red);"></i></button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSettings() {
+  try {
+    const s = await api("/fapi/settings");
+    document.getElementById("darkMode").checked = s.dark_mode !== "0";
+    document.getElementById("autoReconnect").checked = s.auto_reconnect !== "0";
+  } catch (_) {}
+}
+
+async function patchSetting(payload) {
+  try { await api("/fapi/settings", { method: "PATCH", body: JSON.stringify(payload) }); showToast("Saved"); }
+  catch (e) { showToast(e.message, "error"); }
+}
+
+function setDarkMode(on) {
+  patchSetting({ dark_mode: on });
+  document.documentElement.setAttribute("data-bs-theme", on ? "dark" : "light");
+}
+
+async function importConfig(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await fetch("/fapi/settings/import", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Import failed");
+    showToast(`Imported ${data.imported_rules} rule(s)`);
+  } catch (e) { showToast(e.message, "error"); }
+  input.value = "";
+}
+
+async function resetDuplicates() {
+  if (!confirm("Forget all recorded contract addresses? Duplicates may be forwarded again.")) return;
+  try {
+    const r = await api("/fapi/settings/reset-duplicates", { method: "POST" });
+    showToast(`Removed ${r.deleted} record(s)`, "info");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function clearLogs() {
+  if (!confirm("Clear all logs?")) return;
+  try { await api("/fapi/logs", { method: "DELETE" }); showToast("Logs cleared", "info"); }
+  catch (e) { showToast(e.message, "error"); }
+}
+
+async function logout() {
+  if (!confirm("Log out and remove this Telegram account?\n\nThis clears the session and saved API credentials from the app. Forwarding stops until you log in again.")) return;
+  try { await api("/auth/logout", { method: "POST" }); location.href = "/login"; }
+  catch (e) { showToast(e.message, "error"); }
+}
+
+async function goLogin(btn) {
+  // Clear any stale/dead session first so the login always starts fresh.
+  btn.disabled = true;
+  try { await api("/auth/logout", { method: "POST" }); } catch (_) {}
+  location.href = "/login";
+}
+
+loadSettings();
+</script>
+{% endblock %}

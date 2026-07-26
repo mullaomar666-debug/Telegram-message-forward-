@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card"><div class="val" id="stRunning">—</div><div class="lbl">Status</div></div>
+  <div class="stat-card"><div class="val" id="stConnected">—</div><div class="lbl">Connected</div></div>
+  <div class="stat-card"><div class="val blue" id="stSources">0</div><div class="lbl">Sources</div></div>
+  <div class="stat-card"><div class="val blue" id="stDests">0</div><div class="lbl">Destinations</div></div>
+  <div class="stat-card"><div class="val" id="stQueue">0</div><div class="lbl">Queue</div></div>
+  <div class="stat-card"><div class="val green" id="stForwarded">0</div><div class="lbl">Forwarded Today</div></div>
+  <div class="stat-card"><div class="val amber" id="stDup">0</div><div class="lbl">Duplicates Skipped</div></div>
+  <div class="stat-card"><div class="val red" id="stFailed">0</div><div class="lbl">Failed</div></div>
+  <div class="stat-card"><div class="val" id="stUptime">00:00:00</div><div class="lbl">Uptime</div></div>
+</div>
+
+<div class="mcard mt-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-semibold">Forwarding Engine</div>
+      <div class="chat-sub" id="engineSub">—</div>
+    </div>
+    <button class="btn btn-primary" id="engineBtn" onclick="toggleEngine()">…</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function refreshStats() {
+  try {
+    const s = await api("/fapi/settings/stats");
+    setVal("stRunning", s.running ? "ON" : "OFF", s.running ? "green" : "red");
+    setVal("stConnected", s.connected ? "YES" : "NO", s.connected ? "green" : "red");
+    document.getElementById("stSources").textContent = s.sources;
+    document.getElementById("stDests").textContent = s.destinations;
+    document.getElementById("stQueue").textContent = s.queue;
+    document.getElementById("stForwarded").textContent = s.forwarded_today;
+    document.getElementById("stDup").textContent = s.duplicates_today;
+    document.getElementById("stFailed").textContent = s.failed;
+    document.getElementById("stUptime").textContent = s.uptime;
+    const btn = document.getElementById("engineBtn");
+    btn.textContent = s.running ? "Pause" : "Start";
+    document.getElementById("engineSub").textContent =
+      s.running ? `Running · ${s.rules} rule(s) active` : "Paused";
+  } catch (e) { /* silent */ }
+}
+function setVal(id, text, color) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = "val " + (color || "");
+}
+async function toggleEngine() {
+  try {
+    await api("/fapi/settings/engine/toggle", { method: "POST" });
+    refreshStats();
+  } catch (e) { showToast(e.message, "error"); }
+}
+refreshStats();
+setInterval(refreshStats, 3000);
+</script>
+{% endblock %}

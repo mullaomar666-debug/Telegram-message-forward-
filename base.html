@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#121212" />
+  <title>{% block title %}TM Forwarder{% endblock %}</title>
+  <link href="/static/vendor/bootstrap.min.css" rel="stylesheet" />
+  <link href="/static/vendor/inter.css" rel="stylesheet" />
+  <link href="/static/vendor/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
+  <link href="/static/css/custom.css" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Top app bar -->
+  <header class="appbar">
+    <div class="appbar-inner">
+      {% block appbar_left %}
+        <span class="appbar-title">{% block page_title %}TM Forwarder{% endblock %}</span>
+      {% endblock %}
+      <div class="appbar-actions">
+        {% block appbar_actions %}{% endblock %}
+        <span class="conn-dot {{ 'on' if user else 'off' }}" id="connDot"
+              title="{{ 'Connected' if user else 'Disconnected' }}"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page content -->
+  <main class="page-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Bottom navigation -->
+  <nav class="bottomnav">
+    <a href="/" class="bn-item {{ 'active' if page == 'home' }}">
+      <i class="bi bi-arrow-left-right"></i><span>Rules</span>
+    </a>
+    <a href="/dashboard" class="bn-item {{ 'active' if page == 'dashboard' }}">
+      <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+    </a>
+    <a href="/logs" class="bn-item {{ 'active' if page == 'logs' }}">
+      <i class="bi bi-journal-text"></i><span>Logs</span>
+    </a>
+    <a href="/settings" class="bn-item {{ 'active' if page == 'settings' }}">
+      <i class="bi bi-gear"></i><span>Settings</span>
+    </a>
+  </nav>
+
+  {% block fab %}{% endblock %}
+
+  <!-- Toast container -->
+  <div class="toast-container position-fixed bottom-0 start-50 translate-middle-x p-3" id="toastArea" style="z-index:2000; margin-bottom:88px;"></div>
+
+  <script src="/static/vendor/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
