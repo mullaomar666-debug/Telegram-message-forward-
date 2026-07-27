@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% block page_title %}{{ 'Edit Forwarding Rule' if rule else 'New Forwarding Rule' }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+  <div class="d-flex align-items-center gap-3">
+    <a href="/" class="text-white fs-5"><i class="bi bi-arrow-left"></i></a>
+    <span class="top-bar-title">{{ 'Edit Forwarding Rule' if rule else 'New Forwarding Rule' }}</span>
+  </div>
+  <button type="button" onclick="saveRule()" id="saveTop" class="top-bar-action btn btn-link p-0 text-decoration-none fw-bold" style="color: var(--accent-light-blue);">Save</button>
+</div>
+
+<!-- Rule Name Input -->
+<div class="px-3 pt-3">
+  <input type="text" class="form-control bg-dark text-white border-secondary mb-3" id="ruleName" placeholder="Rule name (optional)" value="{{ rule.name if rule else '' }}">
+</div>
+
+<!-- Tabs -->
+<div class="nav-tabs-custom">
+  <a href="javascript:void(0)" class="tab-item active" onclick="switchTab('chats', this)">Chats</a>
+  <a href="javascript:void(0)" class="tab-item" onclick="switchTab('filters', this)">Filters</a>
+  <a href="javascript:void(0)" class="tab-item" onclick="switchTab('options', this)">Options</a>
+</div>
+
+<div class="px-3 pb-5">
+  <!-- ── TAB 1: CHATS ────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-chats">
+    <div class="mb-4">
+      <label class="text-muted fw-bold small text-uppercase mb-2">From</label>
+      <div id="sourceRows"></div>
+      <button type="button" class="btn-outline-dashed" onclick="openPicker('source')"><i class="bi bi-plus-lg me-1"></i>Add source chat</button>
+    </div>
+
+    <div class="text-center text-muted my-3 opacity-50">
+      <i class="bi bi-chevron-down d-block"></i>
+      <i class="bi bi-chevron-down d-block"></i>
+    </div>
+
+    <div class="mb-4">
+      <label class="text-muted fw-bold small text-uppercase mb-2">To</label>
+      <div id="destRows"></div>
+      <button type="button" class="btn-outline-dashed" onclick="openPicker('destination')"><i class="bi bi-plus-lg me-1"></i>Add destination chat</button>
+    </div>
+  </div>
+
+  <!-- ── TAB 2: FILTERS ──────────────────────────────────────── -->
+  <div class="tab-panel d-none" id="tab-filters">
+    <label class="text-primary fw-bold small mb-3">Message Types</label>
+    <div class="row g-3 mb-4" id="typeGrid"></div>
+
+    <hr style="border-color: var(--border-color);">
+
+    <!-- Whitelist Keywords -->
+    <div class="mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="text-success fw-bold small">Whitelist Keywords</span>
+        <button type="button" class="btn btn-sm text-primary p-0 fw-bold" onclick="toggleKeywordInput('whitelist')">+ Add</button>
+      </div>
+      <div class="text-muted small mb-2">Only forward messages that contain at least one of these words</div>
+      <div class="input-group mb-2 d-none" id="whitelistAdd">
+        <input type="text" class="form-control bg-dark text-white border-secondary" placeholder="e.g. CA:" onkeydown="if(event.key==='Enter'){event.preventDefault();commitKeyword('whitelist');}">
+        <button class="btn btn-primary" type="button" onclick="commitKeyword('whitelist')">Add</button>
+      </div>
+      <div class="d-flex flex-wrap gap-2" id="whitelistChips"></div>
+    </div>
+
+    <!-- Blacklist Keywords -->
+    <div class="mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span class="text-danger fw-bold small">Blacklist Keywords</span>
+        <button type="button" class="btn btn-sm text-primary p-0 fw-bold" onclick="toggleKeywordInput('blacklist')">+ Add</button>
+      </div>
+      <div class="text-muted small mb-2">Skip messages that contain any of these words</div>
+      <div class="input-group mb-2 d-none" id="blacklistAdd">
+        <input type="text" class="form-control bg-dark text-white border-secondary" placeholder="e.g. scam" onkeydown="if(event.key==='Enter'){event.preventDefault();commitKeyword('blacklist');}">
+        <button class="btn btn-primary" type="button" onclick="commitKeyword('blacklist')">Add</button>
+      </div>
+      <div class="d-flex flex-wrap gap-2" id="blacklistChips"></div>
+    </div>
+
+    <hr style="border-color: var(--border-color);">
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div>
+        <div class="fw-bold">Forward media without text</div>
+        <div class="text-muted small">Forward images/media even if keyword filter is active and text is missing</div>
+      </div>
+      <div class="form-check form-switch m-0">
+        <input class="form-check-input" type="checkbox" id="fwdMediaNoText" checked>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 3: OPTIONS ──────────────────────────────────────── -->
+  <div class="tab-panel d-none" id="tab-options">
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <label class="form-label text-muted small">Forward delay (ms)</label>
+        <input type="number" class="form-control bg-dark text-white border-secondary" id="delayMs" value="0">
+      </div>
+      <div class="col-6">
+        <label class="form-label text-muted small">Retry count</label>
+        <input type="number" class="form-control bg-dark text-white border-secondary" id="retryCount" value="3">
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+      <div>
+        <div class="fw-bold">Silent forwarding</div>
+        <div class="text-muted small">Deliver without notification sound</div>
+      </div>
+      <div class="form-check form-switch m-0">
+        <input class="form-check-input" type="checkbox" id="silent">
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center py-2">
+      <div>
+        <div class="fw-bold">Forward as copy</div>
+        <div class="text-muted small">Send as new message, hiding original sender</div>
+      </div>
+      <div class="form-check form-switch m-0">
+        <input class="form-check-input" type="checkbox" id="forwardAsCopy">
+      </div>
+    </div>
+  </div>
+
+  <div class="d-grid mt-4">
+    <button type="button" class="btn btn-primary py-3 rounded-3 fw-bold" id="saveBtn" onclick="saveRule()">
+      <i class="bi bi-check-lg me-1"></i>{{ 'Save Changes' if rule else 'Create Rule' }}
+    </button>
+  </div>
+</div>
+
+<!-- ── CHAT PICKER MODAL ────────────────────────────────────── -->
+<div class="modal fade" id="pickerModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-white border-secondary">
+      <div class="modal-header border-secondary py-3">
+        <h6 class="modal-title" id="pickerTitle">Select chat</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="search" class="form-control bg-dark text-white border-secondary mb-3" id="pickerSearch" placeholder="Search chats…" autocomplete="off">
+        <div class="chat-picker-list" id="pickerList">
+          <div class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-2"></i>Loading chats…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MSG_TYPES = [
+  ["text", "Text"], ["photo", "Images"],
+  ["video", "Videos"], ["gif", "GIFs"],
+  ["emoji", "Emojis"], ["sticker", "Stickers"],
+  ["location", "Locations"], ["contact", "Contacts"],
+  ["file", "Files"], ["voice", "Voices"],
+];
+
+const existingRule = {{ rule | tojson if rule else 'null' }};
+let sources = existingRule ? existingRule.sources.map(pickChat) : [];
+let destinations = existingRule ? existingRule.destinations.map(pickChat) : [];
+let whitelist = existingRule ? [...(existingRule.whitelist || [])] : [];
+let blacklist = existingRule ? [...(existingRule.blacklist || [])] : [];
+let pickerRole = "source";
+let allChats = [];
+
+function pickChat(c) {
+  return { chat_id: String(c.chat_id), title: c.title || "", username: c.username || "", chat_type: c.chat_type || "channel" };
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/* ── Tab Switcher ── */
+function switchTab(tabName, el) {
+  document.querySelectorAll(".nav-tabs-custom .tab-item").forEach(x => x.classList.remove("active"));
+  el.classList.add("active");
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("d-none"));
+  document.getElementById("tab-" + tabName).classList.remove("d-none");
+}
+
+/* ── Message types Render ── */
+document.getElementById("typeGrid").innerHTML = MSG_TYPES.map(([v, label]) => `
+  <div class="col-6">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" value="${v}" name="msgType" id="type_${v}" checked>
+      <label class="form-check-label fw-semibold" for="type_${v}">${label}</label>
+    </div>
+  </div>`).join("");
+
+/* ── Source / Destination Chips ── */
+function renderChips() {
+  for (const [role, list, boxId] of [
+    ["source", sources, "sourceRows"],
+    ["destination", destinations, "destRows"],
+  ]) {
+    const box = document.getElementById(boxId);
+    box.innerHTML = list.length ? list.map((c, i) => `
+      <div class="d-flex align-items-center justify-content-between p-2 rounded-3 mb-2" style="background: var(--card-inner);">
+        <div class="d-flex align-items-center gap-2">
+          <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold" style="width:36px;height:36px;background:#2b3a4a;">
+            ${(c.title || 'C').charAt(0).toUpperCase()}
+          </div>
+          <span class="fw-bold text-white">${escapeHtml(c.title || c.chat_id)}</span>
+        </div>
+        <i class="bi bi-x-lg text-danger fs-5" style="cursor:pointer;" onclick="removeChat('${role}', ${i})"></i>
+      </div>`).join("") : "";
+  }
+}
+
+function removeChat(role, idx) {
+  (role === "source" ? sources : destinations).splice(idx, 1);
+  renderChips();
+}
+
+/* ── Keywords ── */
+function renderKeywords() {
+  for (const [list, boxId, role] of [
+    [whitelist, "whitelistChips", "whitelist"],
+    [blacklist, "blacklistChips", "blacklist"],
+  ]) {
+    const box = document.getElementById(boxId);
+    box.innerHTML = list.map((w, i) => `
+      <span class="tag-chip">${escapeHtml(w)} <i class="bi bi-x ms-1" style="cursor:pointer;" onclick="removeKeyword('${role}', ${i})"></i></span>`).join("");
+  }
+}
+
+function toggleKeywordInput(role) {
+  const box = document.getElementById(role + "Add");
+  box.classList.toggle("d-none");
+  if (!box.classList.contains("d-none")) box.querySelector("input").focus();
+}
+
+function commitKeyword(role) {
+  const box = document.getElementById(role + "Add");
+  const inp = box.querySelector("input");
+  const list = role === "whitelist" ? whitelist : blacklist;
+  inp.value.split(",").map(s => s.trim()).filter(Boolean).forEach(k => {
+    if (!list.some(x => x.toLowerCase() === k.toLowerCase())) list.push(k);
+  });
+  inp.value = "";
+  box.classList.add("d-none");
+  renderKeywords();
+}
+
+function removeKeyword(role, i) {
+  (role === "whitelist" ? whitelist : blacklist).splice(i, 1);
+  renderKeywords();
+}
+
+/* ── Picker Modal Logic ── */
+let pickerModal = null;
+document.addEventListener("DOMContentLoaded", () => {
+  pickerModal = new bootstrap.Modal(document.getElementById("pickerModal"));
+});
+
+async function openPicker(role) {
+  pickerRole = role;
+  document.getElementById("pickerTitle").textContent =
+    role === "source" ? "Select source chat" : "Select destination chat";
+  document.getElementById("pickerSearch").value = "";
+  document.getElementById("pickerList").innerHTML =
+    `<div class="text-center py-4 text-muted"><i class="bi bi-hourglass-split me-2"></i>Loading chats…</div>`;
+  
+  if (pickerModal) pickerModal.show();
+
+  if (!allChats.length) {
+    try {
+      let response = await fetch("/fapi/chats");
+      if (!response.ok) response = await fetch("/chats");
+      const data = await response.json();
+      allChats = data.chats || [];
+    } catch (e) {
+      document.getElementById("pickerList").innerHTML =
+        `<div class="text-center py-4 text-danger"><i class="bi bi-wifi-off me-2"></i>Failed to load chats</div>`;
+      return;
+    }
+  }
+  renderPicker();
+}
+
+function renderPicker() {
+  const q = document.getElementById("pickerSearch").value.toLowerCase();
+  const selected = new Set((pickerRole === "source" ? sources : destinations).map(c => c.chat_id));
+  const items = allChats.filter(c =>
+    !q || (c.title && c.title.toLowerCase().includes(q)) || (c.username && c.username.toLowerCase().includes(q)));
+  const list = document.getElementById("pickerList");
+
+  if (!items.length) {
+    list.innerHTML = `<div class="text-center py-4 text-muted"><i class="bi bi-search me-2"></i>No chats found</div>`;
+    return;
+  }
+
+  list.innerHTML = items.slice(0, 100).map(c => `
+    <div class="d-flex align-items-center justify-content-between p-2 rounded mb-2" style="background:var(--card-inner); cursor:pointer;" onclick='chooseChat(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold" style="width:36px;height:36px;background:#2b3a4a;">
+          ${(c.title || 'C').charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div class="fw-bold text-white small">${escapeHtml(c.title)}</div>
+          <div class="text-muted" style="font-size:0.75rem;">${c.username ? "@" + escapeHtml(c.username) : c.chat_type}</div>
+        </div>
+      </div>
+      ${selected.has(String(c.chat_id)) ? '<i class="bi bi-check-circle-fill text-primary fs-5"></i>' : ""}
+    </div>`).join("");
+}
+
+function chooseChat(chat) {
+  const list = pickerRole === "source" ? sources : destinations;
+  const idx = list.findIndex(c => String(c.chat_id) === String(chat.chat_id));
+  if (idx >= 0) list.splice(idx, 1);
+  else list.push(pickChat(chat));
+  renderChips();
+  renderPicker();
+}
+
+document.getElementById("pickerSearch").addEventListener("input", renderPicker);
+
+/* ── Save Rule ── */
+async function saveRule() {
+  if (!sources.length) { alert("Please add at least one source chat"); return; }
+  if (!destinations.length) { alert("Please add at least one destination chat"); return; }
+
+  const payload = {
+    name: document.getElementById("ruleName").value.trim(),
+    enabled: existingRule ? !!existingRule.enabled : true,
+    sources, destinations,
+    msg_types: [...document.querySelectorAll('input[name="msgType"]:checked')].map(c => c.value),
+    whitelist, blacklist,
+    forward_media_no_text: document.getElementById("fwdMediaNoText").checked,
+    delay_ms: parseInt(document.getElementById("delayMs").value) || 0,
+    retry_count: parseInt(document.getElementById("retryCount").value) || 3,
+    silent: document.getElementById("silent").checked,
+    forward_as_copy: document.getElementById("forwardAsCopy").checked,
+  };
+
+  const btn = document.getElementById("saveBtn");
+  btn.disabled = true;
+
+  try {
+    const url = existingRule ? `/fapi/rules/${existingRule.id}` : "/fapi/rules";
+    const method = existingRule ? "PUT" : "POST";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("Failed to save rule");
+    location.href = "/";
+  } catch (e) {
+    alert(e.message);
+    btn.disabled = false;
+  }
+}
+
+renderChips();
+renderKeywords();
+</script>
+{% endblock %}
