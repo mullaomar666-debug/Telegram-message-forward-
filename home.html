@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block page_title %}Rules - TM Forwarder{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 px-1">
+  <h5 class="fw-bold m-0 text-white"><i class="bi bi-diagram-3 text-primary me-2"></i>Forwarding Rules</h5>
+  <a href="/rules/new" class="btn btn-sm btn-primary rounded-pill px-3">
+    <i class="bi bi-plus-lg me-1"></i>New Rule
+  </a>
+</div>
+
+<div class="rules-container">
+  {% for rule in rules %}
+  <div class="mcard mb-3 p-3 rounded-3" style="background: var(--card-bg, #1e293b);">
+    <div class="d-flex justify-content-between text-muted small fw-bold mb-2 text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+      <span>From</span>
+      <span>To</span>
+    </div>
+
+    <!-- Chat Flow Row -->
+    <div class="d-flex align-items-center justify-content-between my-2">
+      <!-- Source Chat -->
+      <div class="d-flex align-items-center gap-2 overflow-hidden" style="max-width: 42%;">
+        {% set src_title = rule.sources[0].title if rule.sources and rule.sources[0].title else (rule.from_chat_name or 'Source') %}
+        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 36px; height: 36px;">
+          {{ src_title[0] | upper if src_title else 'S' }}
+        </div>
+        <span class="fw-semibold text-white text-truncate small" title="{{ src_title }}">
+          {{ src_title }}
+        </span>
+      </div>
+
+      <i class="bi bi-arrow-right text-info fs-5 flex-shrink-0 mx-1"></i>
+
+      <!-- Destination Chat -->
+      <div class="d-flex align-items-center gap-2 overflow-hidden justify-content-end" style="max-width: 42%;">
+        {% set dst_title = rule.destinations[0].title if rule.destinations and rule.destinations[0].title else (rule.to_chat_name or 'Destination') %}
+        <span class="fw-semibold text-white text-truncate small text-end" title="{{ dst_title }}">
+          {{ dst_title }}
+        </span>
+        <div class="rounded-circle bg-info text-dark d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 36px; height: 36px;">
+          {{ dst_title[0] | upper if dst_title else 'D' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tags / Info Bar -->
+    <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top border-secondary opacity-75">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small">
+          <i class="bi bi-check-circle-fill me-1"></i>Active
+        </span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex gap-2">
+        <a href="/rules/{{ rule.id }}/edit" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+          <i class="bi bi-pencil"></i>
+        </a>
+        <button type="button" onclick="deleteRule('{{ rule.id }}')" class="btn btn-sm btn-outline-danger rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-diagram-3 display-4 text-muted mb-3 d-block"></i>
+    <p class="text-muted mb-3">No forwarding rules created yet.</p>
+    <a href="/rules/new" class="btn btn-primary rounded-pill px-4">
+      <i class="bi bi-plus-lg me-1"></i>Create First Rule
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Floating Action Button for Fast Execution -->
+<a href="/auth/start-engine" class="btn btn-primary rounded-circle position-fixed shadow-lg d-flex align-items-center justify-content-center" style="bottom: 80px; right: 20px; width: 56px; height: 56px; z-index: 999;">
+  <i class="bi bi-play-fill fs-3"></i>
+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteRule(ruleId) {
+  if (!confirm('Are you sure you want to delete this rule?')) return;
+  
+  try {
+    let res = await fetch(`/fapi/rules/${ruleId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      res = await fetch(`/rules/${ruleId}/delete`, { method: 'POST' });
+    }
+    window.location.reload();
+  } catch (e) {
+    alert('Failed to delete rule: ' + e.message);
+  }
+}
+</script>
+{% endblock %}
